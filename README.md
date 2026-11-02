@@ -28,6 +28,6 @@ M5 Lite 使用已验证的接收器状态与型号字段；USB 占位值和离�
 
 ## 开发
 
-使用 Python 3.14，安装 `requirements.txt` 后运行 `python app.py`。执行 `python -m unittest discover -s tests` 验证，使用 `build.ps1` 构建双版本。统一构建包含电量测试与后台观察，功能中的推测读数仍需用户确认。
+使用 Python 3.14，安装 `requirements.txt` 后运行 `python app.py`。执行 `python -m unittest discover -s tests` 验证，使用 `build.ps1` 构建统一版。统一构建包含电量测试与后台观察，功能中的推测读数仍需用户确认。
 
 部署与发布的通用约定见 [RELEASE_SERVER.md](RELEASE_SERVER.md)。依赖及素材许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。构建体积约 29 MB，精简仍保留原有 Qt、DPI、图标和更新校验能力。无商业代码签名证书。
