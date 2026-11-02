@@ -141,6 +141,12 @@ class Flyout(QWidget):
         self.info_button=tool('info','品牌目录与设备管理',self.open_catalog);head.addWidget(self.info_button);head.addWidget(tool('close','收起到系统托盘',self.hide))
         self.root.addLayout(head)
         self.summary=label('正在读取设备状态…',11,True);self.root.addWidget(self.summary)
+        self.release_notice=QFrame();self.release_notice.setObjectName('releaseNotice')
+        notice=QVBoxLayout(self.release_notice);notice.setContentsMargins(10,8,10,8);notice.setSpacing(4)
+        notice_head=QHBoxLayout();self.release_notice_title=label('',12,bold=True);notice_head.addWidget(self.release_notice_title,1)
+        dismiss=QPushButton('知道了');dismiss.setFont(font(10));dismiss.setFocusPolicy(Qt.FocusPolicy.TabFocus);dismiss.clicked.connect(self.dismiss_release_notice);notice_head.addWidget(dismiss)
+        notice.addLayout(notice_head);self.release_notice_text=label('',11);self.release_notice_text.setWordWrap(True);notice.addWidget(self.release_notice_text)
+        self.release_notice.hide();self.root.addWidget(self.release_notice)
         self.stack=QStackedWidget();self.root.addWidget(self.stack,1)
         self.scroll=QScrollArea();self.scroll.setWidgetResizable(True);self.scroll.setFrameShape(QFrame.Shape.NoFrame)
         self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -154,9 +160,9 @@ class Flyout(QWidget):
         startup_row.addWidget(label('开机自启',11));startup_row.addStretch()
         self.auto_state=label('',10,True);self.auto_state.setParent(self);self.auto_state.hide()
         self.toggle=Toggle(False);self.toggle.toggled.connect(self.change_startup);startup_row.addWidget(self.toggle);first_row=QWidget();first=QHBoxLayout(first_row);first.setContentsMargins(0,0,0,0);first.setSpacing(10)
-        self.test_button=QPushButton('电量测试');self.test_button.setObjectName('batteryTest');self.test_button.setFont(font(11));self.test_button.setFixedSize(80,30)
+        self.test_button=QPushButton('无法适配电量时，点此测试');self.test_button.setObjectName('batteryTest');self.test_button.setFont(font(11));self.test_button.setFixedSize(184,30)
         self.test_button.setFocusPolicy(Qt.FocusPolicy.TabFocus);self.test_button.clicked.connect(self.open_research)
-        first.addWidget(self.test_button);first.addWidget(startup_box,1)
+        first.addWidget(startup_box,1)
         refresh_box=QWidget();refresh_row=QHBoxLayout(refresh_box);refresh_row.setContentsMargins(0,0,0,0);refresh_row.setSpacing(6)
         refresh_row.addWidget(label('刷新间隔',11));refresh_row.addStretch()
         self.refresh_choice=QComboBox();self.refresh_choice.setObjectName('refreshInterval');self.refresh_choice.setFixedSize(94,28)
@@ -166,10 +172,14 @@ class Flyout(QWidget):
         self.refresh_choice.setToolTip('切换后立即保存并生效。查询未结束时不会重复启动。')
         self.refresh_choice.currentIndexChanged.connect(lambda:self.change_interval(self.refresh_choice.currentData()))
         refresh_row.addWidget(self.refresh_choice);first.addWidget(refresh_box,1);controls.addWidget(first_row,0,0,1,2)
-        version_box=QWidget();version_row=QHBoxLayout(version_box);version_row.setContentsMargins(0,0,0,0);version_row.setSpacing(6)
+        version_box=QWidget();self.version_box=version_box;version_row=QHBoxLayout(version_box);version_row.setContentsMargins(0,12,0,0);version_row.setSpacing(6)
+        version_row.addWidget(self.test_button)
         version_text='v'+VERSION
         self.version_label=label(version_text,10,True);self.version_label.setToolTip('当前版本：'+VERSION+' · 统一版');version_row.addWidget(self.version_label,1)
         self.update_button=QPushButton('检查更新');self.update_button.setFont(font(10));self.update_button.setMinimumSize(106,28);version_row.addWidget(self.update_button);controls.addWidget(version_box,1,0,1,2)
+        self.update_badge=QLabel('新版本可更新',version_box);self.update_badge.setFont(font(9));self.update_badge.setFixedSize(88,18)
+        self.update_badge.setAlignment(Qt.AlignmentFlag.AlignCenter);self.update_badge.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents,True)
+        self.update_badge.setStyleSheet('QLabel {background:#0067c0;color:white;border-radius:4px;padding:1px 3px;}');self.update_badge.hide()
         self.statusline=label('托盘显示最低电量',10,True);self.statusline.setSizePolicy(QSizePolicy.Policy.Ignored,QSizePolicy.Policy.Preferred);self.statusline.hide();self.root.addWidget(self.statusline)
         self.update_job=None;self.update_url=None;self.update_button.clicked.connect(self.check_update)
         self.update_candidate=None;self.download_ready=None;self.needs_update_config=False
@@ -181,11 +191,13 @@ class Flyout(QWidget):
         previous_update=read_json(data_dir()/'updates/last-result.json',{})
         if previous_update.get('ok') is False and 0<=time.time()-previous_update.get('at',0)<86400:
             self.update_button.setText('上次更新失败');self.update_button.setToolTip(previous_update.get('message','请重新检查更新'))
+        self.load_release_notice(previous_update)
         self.apply_theme()
         self.refresh_startup()
 
-    def check_update(self):
+    def check_update(self,automatic=False):
         if self.update_job:return
+        if automatic and (self.update_candidate or self.download_ready or self.needs_update_config):return
         if self.needs_update_config:
             from PySide6.QtWidgets import QFileDialog
             from update_config import save_config
@@ -216,11 +228,41 @@ class Flyout(QWidget):
             self.update_button.setText('重试更新');self.update_button.setToolTip(result.get('user_message',result.get('error','检查失败')));return
         info=result.get('update',{});status=info.get('status');self.update_button.setToolTip(info.get('message',''))
         self.version_label.setToolTip(info.get('message',''))
-        if status=='available':self.update_candidate=info;self.update_button.setText('下载并更新');return
+        if status=='available':
+            self.update_candidate=info;self.update_badge.show();self.position_update_badge();self.update_button.setText('下载并更新');return
+        self.update_badge.hide()
         if status=='unconfigured':
             self.needs_update_config=True;self.update_button.setText('导入更新配置');return
         if status=='no_release':self.update_button.setText('暂无新版');return
         self.update_button.setText('已是最新' if status=='current' else '当前较新' if status=='ahead' else '检查更新')
+
+    def position_update_badge(self):
+        if hasattr(self,'update_badge'):
+            self.update_badge.move(max(0,self.update_button.x()+self.update_button.width()-self.update_badge.width()),max(0,self.update_button.y()-12))
+            self.update_badge.raise_()
+
+    def load_release_notice(self,last_update):
+        from settings import read_json,data_dir
+        from pathlib import Path
+        seen=read_json(data_dir()/'updates/seen-release.json',{})
+        if (last_update.get('ok') is not True or str(last_update.get('version','')).removeprefix('v')!=VERSION
+                or seen.get('version')==VERSION or not 0<=time.time()-last_update.get('at',0)<7*86400):return
+        notes=read_json(Path(__file__).with_name('release-notes.json'),{})
+        items=notes.get('items',[]) if notes.get('version')==VERSION else []
+        items=[x[:90] for x in items[:3] if isinstance(x,str)]
+        if not items:return
+        self.release_notice_title.setText('已更新至 v'+VERSION)
+        self.release_notice_text.setText('\n'.join('• '+item for item in items));self.release_notice.show()
+
+    def dismiss_release_notice(self):
+        from settings import atomic_json,data_dir
+        try:atomic_json(data_dir()/'updates/seen-release.json',{'version':VERSION,'at':time.time()})
+        except OSError:pass
+        self.release_notice.hide()
+        if self.isVisible():self.resize_for_content()
+
+    def resizeEvent(self,event):
+        super().resizeEvent(event);self.position_update_badge()
 
     def download_update(self):
         import sys
@@ -278,6 +320,7 @@ class Flyout(QWidget):
         QFrame#card {{background:{card};border:1px solid {border};border-radius:7px;}}
         QFrame#card:hover,QFrame#card:focus {{background:{hover};border-color:{windows.accent()};}}
         QFrame#separator {{background:{border};border:0;}}
+        QFrame#releaseNotice {{background:{card};border:1px solid {border};border-radius:7px;}}
         QToolButton {{background:transparent;border:0;border-radius:4px;}}
         QToolButton:hover {{background:{border};}}
         QToolButton:focus {{border:1px solid {windows.accent()};}}
@@ -510,6 +553,7 @@ class Flyout(QWidget):
         screen=screen or QApplication.primaryScreen();bounds=screen.availableGeometry()
         count=len(visible_devices(self.devices,self.preferences))
         width=min(440,bounds.width()-24);height=adaptive_height(count,bounds.height(),bool(self.selected))
+        if not self.release_notice.isHidden():height=min(bounds.height()-20,height+max(95,self.release_notice.sizeHint().height()))
         if not self.download_progress.isHidden():height=min(bounds.height()-20,height+30)
         if self.width()!=width or self.height()!=height:self.setFixedSize(width,height)
         x=rect.center().x()-self.width()//2 if rect and not rect.isNull() else bounds.right()-self.width()-12
@@ -517,6 +561,7 @@ class Flyout(QWidget):
         if rect and not rect.isNull() and rect.center().y()<bounds.top()+50:y=bounds.top()+10
         x=max(bounds.left()+8,min(x,bounds.right()-self.width()-8))
         if self.x()!=x or self.y()!=y:self.move(x,y)
+        self.position_update_badge()
 
     def keyPressEvent(self,e):
         if e.key()==Qt.Key.Key_Escape:
@@ -537,5 +582,5 @@ class Flyout(QWidget):
 
 def adaptive_height(count,available_height,detail=False):
     maximum=max(160,min(760,round(available_height*.78),available_height-20))
-    desired=max(226,184+max(1,count)*70+max(0,count-1)*6)
+    desired=max(238,196+max(1,count)*70+max(0,count-1)*6)
     return min(maximum,max(430,desired) if detail else desired)

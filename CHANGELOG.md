@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.9.1 (unified release)
+- Move the renamed battery-test entry to the update row: 无法适配电量时，点此测试.
+- Automatically check once per primary application startup, with no automatic download or configuration dialog.
+- Show a blue update badge when a new version is available; show three concise local release notes after successful installation, with persistent dismissal.
+- Retain the unified read-only test/observation workflow and private external deployment configuration.
+- 276 regression tests pass, including update badges and post-install notice behavior.
+
 ## v2.9.0 (unified release)
 - Merge stable/experimental editions into one release, with one battery-test entry left of startup controls and no edition selector.
 - Combine read-only precheck, paired unplug/plug samples, background observation and candidate review in one modeless, scrollable panel.

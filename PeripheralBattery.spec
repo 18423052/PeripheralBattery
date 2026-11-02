@@ -9,11 +9,11 @@ import sys
 root=Path(SPECPATH)
 sys.path.insert(0,str(root))
 channel='stable'
-version='2.9.0'
+version='2.9.1'
 generated=Path(CONF['workpath'])/'channel';generated.mkdir(parents=True,exist_ok=True)
 (generated/'release.json').write_text(json.dumps(dict(version=version,channel=channel,battery_tests=True)),encoding='utf-8')
 version_text=(root/'version_info.txt').read_text(encoding='utf-8')
-numeric='2,9,0,0'
+numeric='2,9,1,0'
 version_text=re.sub(r'filevers=\([^)]*\),prodvers=\([^)]*\)',f'filevers=({numeric}),prodvers=({numeric})',version_text)
 version_text=re.sub(r"(StringStruct\('(?:FileVersion|ProductVersion)',')[^']*",lambda m:m[1]+version,version_text)
 (generated/'version_info.txt').write_text(version_text,encoding='utf-8')
@@ -21,7 +21,7 @@ excluded=['PySide6.QtQuick','PySide6.QtQml','PySide6.QtPdf','PySide6.QtOpenGL',
           'PySide6.QtOpenGLWidgets','PySide6.QtTest']
 excluded+=['learning_ui']
 a=Analysis([str(root/'app.py')],pathex=[str(root)],
-    datas=[(str(generated/'release.json'),'.'),(str(root/'assets'),'assets'),(str(root/'catalog.json'),'.'),
+    datas=[(str(generated/'release.json'),'.'),(str(root/'assets'),'assets'),(str(root/'catalog.json'),'.'),(str(root/'release-notes.json'),'.'),
            (str(root/'licenses'),'licenses'),(str(root/'THIRD_PARTY_NOTICES.md'),'.'),
            (str(root/'battery_backends/LICENSE'),'battery_backends')],
     hiddenimports=collect_submodules('battery_backends'),

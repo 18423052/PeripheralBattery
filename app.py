@@ -274,6 +274,7 @@ def main():
         publish(devices,[]);QTimer.singleShot(100,lambda:busy(False) if args.capture else show())
     else:
         poll.start();QTimer.singleShot(0,lambda:controller.refresh(True))
+        if not args.capture:QTimer.singleShot(1200,lambda:flyout.check_update(automatic=True))
         if not args.background and not args.capture:QTimer.singleShot(180,show)
     logger.info('event loop ready')
     result=app.exec();server.close();lock.unlock();return result

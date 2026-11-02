@@ -34,10 +34,10 @@ class BatteryPanelTests(unittest.TestCase):
         self.panel.dispose();self.panel.close();self.panel.deleteLater();self.learning.cancel();self.learning.deleteLater()
         self.flyout.close();self.flyout.deleteLater();app.processEvents();self.startup.stop();self.env.stop();self.tmp.cleanup()
 
-    def test_entry_is_left_of_startup_and_old_top_actions_absent(self):
+    def test_entry_shares_update_row_and_old_top_actions_absent(self):
         self.flyout.rebuild([self.device],[]);self.flyout.show_at_tray();app.processEvents()
         a=self.flyout.test_button.mapTo(self.flyout,self.flyout.test_button.rect().topLeft())
-        b=self.flyout.toggle.mapTo(self.flyout,self.flyout.toggle.rect().topLeft())
+        b=self.flyout.update_button.mapTo(self.flyout,self.flyout.update_button.rect().topLeft())
         self.assertLess(a.x(),b.x());self.assertLess(abs(a.y()-b.y()),12)
 
     def test_precheck_requires_explicit_awake_unplugged_ack(self):

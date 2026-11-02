@@ -19,7 +19,7 @@ class ReleaseChannelTests(unittest.TestCase):
             for enabled in (False,True):
                 with patch('ui.EXPERIMENTAL_ENABLED',enabled):
                     flyout=Flyout(Settings(Path(tmp)/'settings.json'))
-                    self.assertEqual(flyout.test_button.text(),'电量测试')
+                    self.assertEqual(flyout.test_button.text(),'无法适配电量时，点此测试')
                     self.assertFalse(hasattr(flyout,'research_button'));self.assertFalse(hasattr(flyout,'learning_button'))
                     self.assertFalse(hasattr(flyout,'update_channel'))
                     flyout.hide();flyout.deleteLater();app.processEvents()
