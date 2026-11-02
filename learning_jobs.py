@@ -33,12 +33,12 @@ class LearningController(QObject):
         except OSError:self.session['message']='观察记录暂时无法保存，请检查磁盘。'
         self.changed.emit()
 
-    def start(self,identity,before,charged,hours):
+    def start(self,identity,before,charged,hours,unplug_confirmed=False):
         if self.session.get('state') in ('observing','awaiting_unplug'):raise ValueError('已有一台设备在观察，请先结束它。')
         if hours not in (1,2) or len(before)<3 or len(charged)<3:raise ValueError('初始与插线采样不完整')
         self.stop_job();self.session={'identity':identity,'name':before[0]['name'],'before':before,'charged':charged,
             'usage':[],'target_seconds':hours*3600,'elapsed_seconds':0,'state':'awaiting_unplug',
-            'created_at':time.time(),'message':'请拔掉充电线后正常使用；关闭面板可继续观察。','failures':0}
+            'created_at':time.time(),'message':'请拔掉充电线后正常使用；关闭面板可继续观察。','failures':0,'unplug_confirmed':unplug_confirmed}
         self.save();self.timer.start(1000)
 
     def tick(self):
@@ -55,14 +55,19 @@ class LearningController(QObject):
         if generation!=self.generation:return
         self.job=None;self.scanner.research_active=False
         if not result.get('ok'):
+            self.session['last_unplugged']=False
             self.session['failures']=self.session.get('failures',0)+1
             self.session['message']='本次没有应答，间断不计入有效观察。'+str(result.get('error',''))
             if self.session['failures']>=3:self.pause('连续三次没有应答，已暂停；唤醒或重新连接后继续。');return
         else:
             sample=result['sample'];self.session['failures']=0
             if sample.get('charging') is True:
+                self.session['state']='awaiting_unplug';self.session['unplug_confirmed']=False
                 self.session['message']='仍在充电，等待拔线；这段时间不计入使用观察。'
                 self.session['last_unplugged']=False
+            elif sample.get('charging') is None and not self.session.get('unplug_confirmed'):
+                self.session['state']='awaiting_unplug';self.session['last_unplugged']=False
+                self.session['message']='无法从此报告自动确认拔线，请在电量测试中确认无线使用后继续。'
             else:
                 usage=self.session['usage']
                 if usage and self.session.get('last_unplugged'):
@@ -89,14 +94,18 @@ class LearningController(QObject):
 
     def resume(self):
         if self.session.get('state')!='paused':return
-        self.session.update(state='awaiting_unplug',failures=0,created_at=time.time(),last_unplugged=False)
+        self.session.update(state='awaiting_unplug',failures=0,created_at=time.time(),last_unplugged=False,unplug_confirmed=False)
         self.save();self.timer.start(1000)
 
     def extend(self):
         if self.session.get('state')!='completed' or self.session.get('target_seconds')!=3600:return
-        self.session.update(state='awaiting_unplug',target_seconds=7200,created_at=time.time(),failures=0,last_unplugged=False)
+        self.session.update(state='awaiting_unplug',target_seconds=7200,created_at=time.time(),failures=0,last_unplugged=False,unplug_confirmed=False)
         self.save();self.timer.start(1000)
 
     def cancel(self):
         self.stop_job()
         if self.session:self.session.update(state='cancelled',message='已结束观察。');self.save()
+
+    def confirm_unplugged(self):
+        if self.session.get('state')!='awaiting_unplug':return
+        self.session['unplug_confirmed']=True;self.save();self.timer.start(100)

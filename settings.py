@@ -16,7 +16,7 @@ APP_NAME = 'PeripheralBattery'
 _RELEASE=json.loads(Path(__file__).with_name('release.json').read_text(encoding='utf-8'))
 VERSION = _RELEASE['version']
 RELEASE_CHANNEL = _RELEASE['channel']
-EXPERIMENTAL_ENABLED = RELEASE_CHANNEL=='experimental'
+EXPERIMENTAL_ENABLED = _RELEASE.get('battery_tests',True)
 REFRESH_INTERVALS=(5,15,30,60)
 
 
@@ -95,7 +95,7 @@ def redact(text):
 
 class Settings:
     DEFAULTS = {'show_offline': False, 'show_unreadable':False, 'show_auxiliary':False, 'low_notifications': True, 'low_threshold': 20,
-                'hidden': [], 'brand_overrides': {}, 'device_modes':{},'refresh_seconds':15,'autostart_requested': False,'pinned_key':'','update_prereleases':EXPERIMENTAL_ENABLED}
+                'hidden': [], 'brand_overrides': {}, 'device_modes':{},'refresh_seconds':15,'autostart_requested': False,'pinned_key':'','update_prereleases':False}
 
     def __init__(self, path=None):
         self.path = Path(path) if path else data_dir() / 'settings.json'

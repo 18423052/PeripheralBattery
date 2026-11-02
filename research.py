@@ -23,7 +23,14 @@ def research_devices(devices,include_supported=False):
 
 
 def sample(identity,channel=None):
-    groups=[g for g in enumerate_groups() if g['device'].get('identity')==identity]
+    inventory=enumerate_groups()
+    groups=[g for g in inventory if g['device'].get('identity')==identity]
+    if not groups:
+        from settings import read_json,data_dir
+        saved=read_json(data_dir()/'devices.json',[],300000)
+        if isinstance(saved,list) and any(isinstance(d,dict) and d.get('identity')==identity and d.get('kind')=='gamepad' for d in saved):
+            from gamepads import augment_inventory
+            groups=[g for g in augment_inventory(inventory) if g['device'].get('identity')==identity]
     if len(groups)!=1:raise ValueError('设备已经断开、重新枚举或身份不唯一，请重新选择。')
     group=groups[0];d=group['device'];backend=group['backend'];profile=device_profile(d['vid'],d['pid'])
     infos=[decode_info(x) for x in group['infos']]
@@ -40,6 +47,16 @@ def sample(identity,channel=None):
                 'interface':2,'usage_page':0xffff,'usage':2,'backend':backend,'vid':d['vid'],'pid':d['pid'],
                 'name':result['model'][1],'remote_confirmed':True,'protocol_verified':True,
                 'protocol_note':'已找到官方 F7 电池字段与 8F 型号应答；无需插拔差分或等待 1–2 小时。充电标志仍未知。'}
+    if backend and backend not in ('nova5','nova5_usb','scyrox'):
+        from worker import probe
+        readings=probe(group)
+        valid=[r for r in readings if r.get('connected') is True and r.get('confidence')=='confirmed' and
+               (r.get('percent') is not None or r.get('battery_grade'))]
+        if len(valid)!=1:raise ValueError('已识别状态通道，但本次没有唯一有效电量；请唤醒设备或切换连接后重试。')
+        r=valid[0]
+        return dict(timestamp=time.time(),hex='',length=0,charging=r.get('charging'),percent=r.get('percent'),
+                    battery_grade=r.get('battery_grade',''),backend=backend,vid=d['vid'],pid=d['pid'],name=r.get('name',d['name']),
+                    remote_confirmed=True,protocol_verified=True,protocol_note='已通过现有电池通道验证；无需插拔猜测或长时间等待。')
     if not profile or profile.get('backend')!=backend or backend not in ('nova5','nova5_usb','scyrox'):
         from feature_reports import get_feature
         data,chosen=get_feature(infos,channel,reject_blank=True)

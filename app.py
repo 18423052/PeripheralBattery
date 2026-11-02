@@ -132,14 +132,12 @@ def main():
             flyout.update_button.setToolTip(str(error));flyout.update_button.setText('安装失败，重试');flyout.download_progress.setFormat('安装未启动，可重试');return
         QTimer.singleShot(0,quit_app)
     flyout.installUpdateRequested.connect(install_update)
-    learning=None
-    if EXPERIMENTAL_ENABLED:
-        from learning_jobs import LearningController
-        learning=LearningController(controller,app);flyout.learning=learning
+    from learning_jobs import LearningController
+    learning=LearningController(controller,app);flyout.learning=learning;flyout.research_controller=controller
     def learning_changed():
-        s=learning.session
-        flyout.learning_button.setText(f'观察 {int(s.get("elapsed_seconds",0)/60)}/{int(s.get("target_seconds",3600)/60)} 分钟' if s.get('state') in ('observing','awaiting_unplug') else '长时间观察')
-    if learning:learning.changed.connect(learning_changed);learning_changed()
+        active=learning.session.get('state') in ('observing','awaiting_unplug','paused')
+        flyout.test_button.setToolTip(('观察进行中：' if active else '验证电量或查看采样结果：')+learning.session.get('message','一次测试一台设备'))
+    learning.changed.connect(learning_changed);learning_changed()
     state={'quitting':False,'captured':False,'devices':store.snapshot(),'errors':[],
            'alerts':set(),'tray_ready':False,'theme':None,'clients':set()}
 

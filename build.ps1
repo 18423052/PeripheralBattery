@@ -1,4 +1,4 @@
-param([ValidateSet('stable','experimental','both')][string]$Channel='stable')
+# Unified release: a single build includes battery testing.
 $ErrorActionPreference = 'Stop'
 $originalPath = $env:PATH
 Push-Location $PSScriptRoot
@@ -11,12 +11,12 @@ try {
     $pythonDirectory = & $pythonCommand -c 'import sys; from pathlib import Path; print(Path(sys.executable).parent)'
     # Prevent unrelated tools (e.g. Poppler/Conda) supplying a different ICU DLL.
     $env:PATH = "$pythonDirectory;$env:SystemRoot\System32;$env:SystemRoot"
-    $channels = if($Channel -eq 'both'){@('stable','experimental')}else{@($Channel)}
+    $channels = @('stable')
     foreach($buildChannel in $channels){
         $env:PB_BUILD_CHANNEL=$buildChannel
         & $pythonCommand -m PyInstaller --noconfirm --clean --distpath "dist/$buildChannel" --workpath "build/$buildChannel" PeripheralBattery.spec
         if ($LASTEXITCODE -ne 0) { throw 'Build failed.' }
-        $releaseVersion = if($buildChannel -eq 'stable'){'2.8.2'}else{'2.8.3-experimental.1'}
+        $releaseVersion = '2.9.0'
         $releaseName = "PeripheralBattery-v$releaseVersion.exe"
         Copy-Item -LiteralPath "dist/$buildChannel/PeripheralBattery.exe" -Destination "dist/$releaseName" -Force
         Write-Host "Ready: dist\$releaseName"

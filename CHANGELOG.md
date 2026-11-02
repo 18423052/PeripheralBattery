@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.9.0 (unified release)
+- Merge stable/experimental editions into one release, with one battery-test entry left of startup controls and no edition selector.
+- Combine read-only precheck, paired unplug/plug samples, background observation and candidate review in one modeless, scrollable panel.
+- Prioritize existing validated battery backends; stop when no usable reply exists. Only suitable unknown reports proceed to 1–2 hour observation.
+- Require explicit unplug confirmation for unknown reports; exclude failed samples from elapsed usage and break continuity across gaps.
+- Keep candidate rejection across reopening, require per-candidate confirmation, and allow old inferred mappings to be disabled without repeating observation.
+- Preserve per-user update configuration, request authentication and signed-binary verification. Public artifacts contain no private deployment information.
+- 272 regression tests pass. Observations remain local and correlations remain explicitly tentative.
+
 ## v2.8.3-experimental.1 (experimental)
 - Share all privacy/window fixes and preserve battery research. Keep numeric management versions separate from the experimental build label.
 

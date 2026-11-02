@@ -14,13 +14,14 @@ app=QApplication.instance() or QApplication([])
 
 
 class ReleaseChannelTests(unittest.TestCase):
-    def test_stable_removes_experiment_controls_and_experimental_keeps_them(self):
+    def test_unified_release_has_one_test_entry_and_no_edition_selector(self):
         with tempfile.TemporaryDirectory() as tmp,patch('startup.state',return_value=StartupState(False,False,False,False)):
             for enabled in (False,True):
                 with patch('ui.EXPERIMENTAL_ENABLED',enabled):
                     flyout=Flyout(Settings(Path(tmp)/'settings.json'))
-                    self.assertEqual(flyout.research_button is not None,enabled)
-                    self.assertEqual(flyout.learning_button is not None,enabled)
+                    self.assertEqual(flyout.test_button.text(),'电量测试')
+                    self.assertFalse(hasattr(flyout,'research_button'));self.assertFalse(hasattr(flyout,'learning_button'))
+                    self.assertFalse(hasattr(flyout,'update_channel'))
                     flyout.hide();flyout.deleteLater();app.processEvents()
 
     def test_stable_worker_rejects_experiment_operations_before_import(self):

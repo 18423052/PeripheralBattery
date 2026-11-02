@@ -141,12 +141,6 @@ class Flyout(QWidget):
         self.info_button=tool('info','品牌目录与设备管理',self.open_catalog);head.addWidget(self.info_button);head.addWidget(tool('close','收起到系统托盘',self.hide))
         self.root.addLayout(head)
         self.summary=label('正在读取设备状态…',11,True);self.root.addWidget(self.summary)
-        self.research_button=None;self.learning_button=None
-        if EXPERIMENTAL_ENABLED:
-            experiment_row=QHBoxLayout();self.root.addLayout(experiment_row)
-            self.research_button=QPushButton('电量适配（实验）');self.research_button.setToolTip('仅列出待适配设备；已适配设备休眠或关机不会进入清单')
-            self.research_button.clicked.connect(self.open_research);experiment_row.addWidget(self.research_button)
-            self.learning_button=QPushButton('长时间观察');self.learning_button.clicked.connect(self.open_learning);experiment_row.addWidget(self.learning_button)
         self.stack=QStackedWidget();self.root.addWidget(self.stack,1)
         self.scroll=QScrollArea();self.scroll.setWidgetResizable(True);self.scroll.setFrameShape(QFrame.Shape.NoFrame)
         self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -159,7 +153,10 @@ class Flyout(QWidget):
         startup_box=QWidget();startup_row=QHBoxLayout(startup_box);startup_row.setContentsMargins(0,0,0,0);startup_row.setSpacing(6)
         startup_row.addWidget(label('开机自启',11));startup_row.addStretch()
         self.auto_state=label('',10,True);self.auto_state.setParent(self);self.auto_state.hide()
-        self.toggle=Toggle(False);self.toggle.toggled.connect(self.change_startup);startup_row.addWidget(self.toggle);controls.addWidget(startup_box,0,0)
+        self.toggle=Toggle(False);self.toggle.toggled.connect(self.change_startup);startup_row.addWidget(self.toggle);first_row=QWidget();first=QHBoxLayout(first_row);first.setContentsMargins(0,0,0,0);first.setSpacing(10)
+        self.test_button=QPushButton('电量测试');self.test_button.setObjectName('batteryTest');self.test_button.setFont(font(11));self.test_button.setFixedSize(80,30)
+        self.test_button.setFocusPolicy(Qt.FocusPolicy.TabFocus);self.test_button.clicked.connect(self.open_research)
+        first.addWidget(self.test_button);first.addWidget(startup_box,1)
         refresh_box=QWidget();refresh_row=QHBoxLayout(refresh_box);refresh_row.setContentsMargins(0,0,0,0);refresh_row.setSpacing(6)
         refresh_row.addWidget(label('刷新间隔',11));refresh_row.addStretch()
         self.refresh_choice=QComboBox();self.refresh_choice.setObjectName('refreshInterval');self.refresh_choice.setFixedSize(94,28)
@@ -168,17 +165,11 @@ class Flyout(QWidget):
         self.refresh_choice.setCurrentIndex(REFRESH_INTERVALS.index(self.preferences.get('refresh_seconds',15)))
         self.refresh_choice.setToolTip('切换后立即保存并生效。查询未结束时不会重复启动。')
         self.refresh_choice.currentIndexChanged.connect(lambda:self.change_interval(self.refresh_choice.currentData()))
-        refresh_row.addWidget(self.refresh_choice);controls.addWidget(refresh_box,0,1)
-        channel_box=QWidget();channel_row=QHBoxLayout(channel_box);channel_row.setContentsMargins(0,0,0,0);channel_row.setSpacing(6)
-        channel_row.addWidget(label('更新通道',11));channel_row.addStretch()
-        self.update_channel=QComboBox();self.update_channel.setFont(font(10));self.update_channel.setFixedSize(118,28)
-        self.update_channel.addItem('正式＋实验',True);self.update_channel.addItem('仅正式版',False)
-        self.update_channel.setCurrentIndex(0 if self.preferences.get('update_prereleases',True) else 1)
-        self.update_channel.setToolTip('选择版本服务器的正式 / 实验发布通道');channel_row.addWidget(self.update_channel);controls.addWidget(channel_box,1,0)
+        refresh_row.addWidget(self.refresh_choice);first.addWidget(refresh_box,1);controls.addWidget(first_row,0,0,1,2)
         version_box=QWidget();version_row=QHBoxLayout(version_box);version_row.setContentsMargins(0,0,0,0);version_row.setSpacing(6)
-        version_text='v'+VERSION.split('-')[0]+(' · 实验'+VERSION.rsplit('.',1)[-1] if '-' in VERSION and RELEASE_CHANNEL=='experimental' else ' · 正式' if RELEASE_CHANNEL=='stable' else ' · 实验')
-        self.version_label=label(version_text,10,True);self.version_label.setToolTip('当前版本：'+VERSION+(' · 实验版' if RELEASE_CHANNEL=='experimental' else ' · 正式版'));version_row.addWidget(self.version_label,1)
-        self.update_button=QPushButton('检查更新');self.update_button.setFont(font(10));self.update_button.setMinimumSize(106,28);version_row.addWidget(self.update_button);controls.addWidget(version_box,1,1)
+        version_text='v'+VERSION
+        self.version_label=label(version_text,10,True);self.version_label.setToolTip('当前版本：'+VERSION+' · 统一版');version_row.addWidget(self.version_label,1)
+        self.update_button=QPushButton('检查更新');self.update_button.setFont(font(10));self.update_button.setMinimumSize(106,28);version_row.addWidget(self.update_button);controls.addWidget(version_box,1,0,1,2)
         self.statusline=label('托盘显示最低电量',10,True);self.statusline.setSizePolicy(QSizePolicy.Policy.Ignored,QSizePolicy.Policy.Preferred);self.statusline.hide();self.root.addWidget(self.statusline)
         self.update_job=None;self.update_url=None;self.update_button.clicked.connect(self.check_update)
         self.update_candidate=None;self.download_ready=None;self.needs_update_config=False
@@ -186,17 +177,12 @@ class Flyout(QWidget):
         self.download_progress=QProgressBar();self.download_progress.setRange(0,100);self.download_progress.hide();download_row.addWidget(self.download_progress,1)
         self.cancel_download=QPushButton('取消');self.cancel_download.hide();self.cancel_download.clicked.connect(self.cancel_update);download_row.addWidget(self.cancel_download)
         self.update_progress_timer=QTimer(self);self.update_progress_timer.setInterval(400);self.update_progress_timer.timeout.connect(self.read_download_progress)
-        self.update_channel.currentIndexChanged.connect(self.change_update_channel)
         from settings import read_json,data_dir
         previous_update=read_json(data_dir()/'updates/last-result.json',{})
         if previous_update.get('ok') is False and 0<=time.time()-previous_update.get('at',0)<86400:
             self.update_button.setText('上次更新失败');self.update_button.setToolTip(previous_update.get('message','请重新检查更新'))
         self.apply_theme()
         self.refresh_startup()
-
-    def change_update_channel(self):
-        self.preferences.set('update_prereleases',self.update_channel.currentData());self.update_url=None;self.update_candidate=None;self.download_ready=None
-        self.update_button.setText('检查更新');self.update_button.setToolTip('仅在点击时连接版本管理服务器；验证发布签名后下载')
 
     def check_update(self):
         if self.update_job:return
@@ -219,13 +205,13 @@ class Flyout(QWidget):
         if self.download_ready:self.installUpdateRequested.emit(self.download_ready);return
         if self.update_candidate:self.download_update();return
         from jobs import WorkerJob
-        self.update_button.setEnabled(False);self.update_channel.setEnabled(False);self.update_button.setText('正在检查…')
-        job=WorkerJob({'operation':'check-updates','include_prereleases':self.update_channel.currentData()},18000,self);self.update_job=job
+        self.update_button.setEnabled(False);self.update_button.setText('正在检查…')
+        job=WorkerJob({'operation':'check-updates','include_prereleases':False},18000,self);self.update_job=job
         job.finished.connect(lambda result:self.update_checked(job,result));job.start()
 
     def update_checked(self,job,result):
         if self.update_job is not job:return
-        self.update_job=None;self.update_button.setEnabled(True);self.update_channel.setEnabled(True)
+        self.update_job=None;self.update_button.setEnabled(True)
         if not result.get('ok'):
             self.update_button.setText('重试更新');self.update_button.setToolTip(result.get('user_message',result.get('error','检查失败')));return
         info=result.get('update',{});status=info.get('status');self.update_button.setToolTip(info.get('message',''))
@@ -241,9 +227,9 @@ class Flyout(QWidget):
         if not getattr(sys,'frozen',False):self.update_button.setToolTip('源码运行模式请使用 Git 更新');return
         from jobs import WorkerJob
         self.download_progress.show();self.download_progress.setValue(0);self.download_progress.setFormat('正在连接版本服务器…')
-        self.cancel_download.show();self.update_button.setEnabled(False);self.update_channel.setEnabled(False)
+        self.cancel_download.show();self.update_button.setEnabled(False)
         job=WorkerJob({'operation':'download-update','tag':self.update_candidate['latest'],
-                       'include_prereleases':self.update_channel.currentData()},1800000,self)
+                       'include_prereleases':False},1800000,self)
         self.update_job=job;job.finished.connect(lambda result:self.download_finished(job,result));job.start();self.update_progress_timer.start()
         self.resize_for_content()
 
@@ -258,7 +244,7 @@ class Flyout(QWidget):
 
     def download_finished(self,job,result):
         if self.update_job is not job:return
-        self.update_job=None;self.update_progress_timer.stop();self.cancel_download.hide();self.update_button.setEnabled(True);self.update_channel.setEnabled(True)
+        self.update_job=None;self.update_progress_timer.stop();self.cancel_download.hide();self.update_button.setEnabled(True)
         if not result.get('ok'):
             self.download_progress.setFormat('下载失败，未安装');self.update_candidate=None;self.update_button.setText('重新检查')
             self.update_button.setToolTip(result.get('user_message',result.get('error','下载失败')));return
@@ -273,7 +259,7 @@ class Flyout(QWidget):
             for suffix in ('.part','.exe'):
                 try:(data_dir()/'updates'/(job.nonce+suffix)).unlink(missing_ok=True)
                 except OSError:pass
-        self.download_progress.hide();self.cancel_download.hide();self.update_button.setEnabled(True);self.update_channel.setEnabled(True)
+        self.download_progress.hide();self.cancel_download.hide();self.update_button.setEnabled(True)
         self.update_button.setText('下载并更新' if self.update_candidate else '检查更新')
 
     def apply_theme(self):
@@ -468,40 +454,24 @@ class Flyout(QWidget):
         dialog.show();dialog.raise_();dialog.activateWindow()
 
     def open_research(self):
-        if not EXPERIMENTAL_ENABLED:return
-        if self.research_controller is None:
-            self.statusline.setText('当前没有可用的设备扫描器');return
+        if self.research_controller is None or self.learning is None:
+            self.statusline.setText('设备扫描器正在准备，请稍后再试');self.statusline.show();return
         if self.research_dialog is not None:
-            self.research_dialog.show();self.research_dialog.raise_();return
-        from research_ui import ResearchDrawer
-        self.pinned=True;dialog=ResearchDrawer(self,self.research_controller);self.research_dialog=dialog
+            self.research_dialog.show();self.research_dialog.raise_();self.research_dialog.activateWindow();return
+        from battery_test_ui import BatteryTestPanel
+        self.pinned=True;dialog=BatteryTestPanel(self,self.research_controller);self.research_dialog=dialog
         dialog.setStyleSheet(self.styleSheet())
         def closed(*args):
-            self.research_dialog=None;self.pinned=False;dialog.deleteLater()
-        dialog.finished.connect(closed)
-        screen=self.screen() or QApplication.primaryScreen();bounds=screen.availableGeometry()
-        x=self.x()-dialog.width()-8 if self.x()-dialog.width()-8>=bounds.left() else self.x()+self.width()+8
-        x=max(bounds.left()+8,min(x,bounds.right()-dialog.width()-8))
-        y=max(bounds.top()+8,min(self.y(),bounds.bottom()-dialog.height()-8))
-        dialog.move(x,y);dialog.show();dialog.raise_();dialog.activateWindow()
-
-    def open_learning(self):
-        if not EXPERIMENTAL_ENABLED:return
-        if self.learning is None:return
-        if self.learning_dialog is not None:self.learning_dialog.show();self.learning_dialog.raise_();return
-        from learning_ui import LearningPanel
-        self.pinned=True;dialog=LearningPanel(self.learning,self.refreshRequested.emit,self);self.learning_dialog=dialog
-        dialog.setStyleSheet(self.styleSheet())
-        def closed(*args):
-            self.learning_dialog=None;self.pinned=False
-            try:self.learning.changed.disconnect(dialog.update_state)
-            except RuntimeError:pass
-            dialog.deleteLater()
+            dialog.dispose();self.research_dialog=None;self.pinned=False;dialog.deleteLater()
         dialog.finished.connect(closed)
         bounds=(self.screen() or QApplication.primaryScreen()).availableGeometry()
+        dialog.resize(min(438,bounds.width()-24),min(590,bounds.height()-24))
         x=self.x()-dialog.width()-8
+        if x<bounds.left():x=self.x()+self.width()+8
         dialog.move(max(bounds.left()+8,min(x,bounds.right()-dialog.width()-8)),max(bounds.top()+8,min(self.y(),bounds.bottom()-dialog.height()-8)))
         dialog.show();dialog.raise_();dialog.activateWindow()
+
+    def open_learning(self):self.open_research()
 
     def raise_catalog(self):
         dialog=self.catalog_dialog
@@ -567,5 +537,5 @@ class Flyout(QWidget):
 
 def adaptive_height(count,available_height,detail=False):
     maximum=max(160,min(760,round(available_height*.78),available_height-20))
-    desired=max(256,214-(0 if EXPERIMENTAL_ENABLED else 30)+max(1,count)*70+max(0,count-1)*6)
+    desired=max(226,184+max(1,count)*70+max(0,count-1)*6)
     return min(maximum,max(430,desired) if detail else desired)
