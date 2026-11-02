@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import os,time
 import http.client
+import socket
 import json
 from pathlib import Path
 import urllib.parse
@@ -132,12 +133,18 @@ class Session:
             connection.putheader('satoken',self._token)
             connection.putheader('Content-Type','multipart/form-data; boundary='+boundary)
             connection.putheader('Content-Length',str(len(prefix)+size+len(suffix)))
-            connection.endheaders();connection.send(prefix)
-            sent=0
+            connection.endheaders()
+            # Keep large uploads steady through local proxies/tunnels. A small
+            # send buffer also avoids reporting megabytes merely queued locally.
+            connection.sock.setsockopt(socket.SOL_SOCKET,socket.SO_SNDBUF,32768)
+            connection.send(prefix)
+            sent=0;next_write=time.monotonic()
             with file.open('rb') as stream:
-                while block:=stream.read(128*1024):
+                while block:=stream.read(4096):
                     connection.send(block);sent+=len(block)
                     if progress:progress(sent,size)
+                    next_write=max(next_write,time.monotonic())+len(block)/262144
+                    time.sleep(max(0,next_write-time.monotonic()))
             connection.send(suffix)
             self._decode(connection.getresponse())
         finally:connection.close()
